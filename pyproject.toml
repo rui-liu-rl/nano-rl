@@ -14,7 +14,10 @@ dependencies = [
 # Plotting (the quickstart curve) and the optional GSM8K loader.
 viz = ["matplotlib>=3.7"]
 data = ["datasets>=2.18"]
-dev = ["pytest>=8.0", "matplotlib>=3.7"]
+
+# Dev tooling lives in a dependency group so `uv run` / `uv sync` pick it up by default.
+[dependency-groups]
+dev = ["pytest>=8.0", "matplotlib>=3.7", "ruff>=0.15", "pre-commit>=3.7"]
 
 [tool.setuptools.packages.find]
 include = ["nanorl*"]
@@ -22,3 +25,25 @@ include = ["nanorl*"]
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+# Config follows the PyTorch / vLLM convention (line-length 88, ruff format) with
+# the lint rule core common to PyTorch, vLLM, and transformers.
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # import sorting (isort)
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["nanorl"]

@@ -1,12 +1,13 @@
 """DPO on synthetic preference pairs.
 
-    python examples/train_dpo.py --smoke
-    python examples/train_dpo.py --model Qwen/Qwen2.5-0.5B-Instruct --steps 200
+python examples/train_dpo.py --smoke
+python examples/train_dpo.py --model Qwen/Qwen2.5-0.5B-Instruct --steps 200
 """
-from _common import base_parser, setup, MetricLogger
 
+from _common import MetricLogger, base_parser, setup
+
+from nanorl.data import iter_batches, synthetic_preferences
 from nanorl.models import load_policy, load_reference
-from nanorl.data import synthetic_preferences, iter_batches
 from nanorl.rl import DPO, DPOConfig
 
 
@@ -25,12 +26,10 @@ def main():
 
     logger = MetricLogger(args.out, "dpo")
     prefs = synthetic_preferences(tok, n=512, seed=args.seed)
-    step = 0
-    for batch in iter_batches(prefs, args.batch_size, seed=args.seed):
+    for step, batch in enumerate(iter_batches(prefs, args.batch_size, seed=args.seed)):
         if step >= args.steps:
             break
         logger.log(step, dpo.step(batch))
-        step += 1
 
 
 if __name__ == "__main__":

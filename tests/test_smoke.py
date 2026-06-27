@@ -6,6 +6,7 @@ or device errors and produces finite losses.
 
     python -m pytest tests/test_smoke.py -q      # or just: python tests/test_smoke.py
 """
+
 from __future__ import annotations
 
 import math
@@ -16,17 +17,29 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from nanorl.models import (load_policy, load_reference, load_policy_with_value,
-                           RewardModel)
-from nanorl.inference import InferenceEngine, SamplingParams
-from nanorl.trainer import forward_logprobs
 from nanorl.data import arithmetic_problems, synthetic_preferences
+from nanorl.inference import InferenceEngine, SamplingParams
+from nanorl.models import (
+    RewardModel,
+    load_policy,
+    load_policy_with_value,
+    load_reference,
+)
 from nanorl.rewards import default_reward, extract_answer
-from nanorl.rl import (GRPO, GRPOConfig, PPO, PPOConfig, DPO, DPOConfig,
-                       RewardModelTrainer, RMConfig)
+from nanorl.rl import (
+    DPO,
+    GRPO,
+    PPO,
+    DPOConfig,
+    GRPOConfig,
+    PPOConfig,
+    RewardModelTrainer,
+    RMConfig,
+)
+from nanorl.trainer import forward_logprobs
 from nanorl.utils import set_seed
 
-MODEL = "Qwen/Qwen2.5-0.5B-Instruct"   # only the *config* is used (random_init=True)
+MODEL = "Qwen/Qwen2.5-0.5B-Instruct"  # only the *config* is used (random_init=True)
 DEV = torch.device("cpu")
 
 
@@ -47,8 +60,9 @@ def test_inference():
     set_seed(0)
     policy, tok = load_policy(MODEL, DEV, random_init=True)
     eng = InferenceEngine(policy, tok, DEV)
-    rollouts = eng.generate(["What is 2 + 2?", "What is 5 * 5?"],
-                            SamplingParams(max_new_tokens=8, n=2))
+    rollouts = eng.generate(
+        ["What is 2 + 2?", "What is 5 * 5?"], SamplingParams(max_new_tokens=8, n=2)
+    )
     assert len(rollouts) == 4
     for r in rollouts:
         assert r.response_ids.ndim == 1
@@ -67,8 +81,14 @@ def test_grpo():
     set_seed(0)
     policy, tok = load_policy(MODEL, DEV, random_init=True)
     ref = load_reference(MODEL, DEV, random_init=True)
-    grpo = GRPO(policy, ref, tok, default_reward,
-                GRPOConfig(group_size=4, max_new_tokens=8), DEV)
+    grpo = GRPO(
+        policy,
+        ref,
+        tok,
+        default_reward,
+        GRPOConfig(group_size=4, max_new_tokens=8),
+        DEV,
+    )
     _finite(grpo.step(arithmetic_problems(tok, n=2, seed=1)))
 
 
@@ -76,8 +96,14 @@ def test_ppo():
     set_seed(0)
     pv, tok = load_policy_with_value(MODEL, DEV, random_init=True)
     ref = load_reference(MODEL, DEV, random_init=True)
-    ppo = PPO(pv, ref, tok, default_reward,
-              PPOConfig(rollouts_per_prompt=4, max_new_tokens=8, ppo_epochs=2), DEV)
+    ppo = PPO(
+        pv,
+        ref,
+        tok,
+        default_reward,
+        PPOConfig(rollouts_per_prompt=4, max_new_tokens=8, ppo_epochs=2),
+        DEV,
+    )
     _finite(ppo.step(arithmetic_problems(tok, n=2, seed=1)))
 
 

@@ -5,6 +5,7 @@
 
 Picks sensible default curves per metric file if --keys is omitted.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,7 +14,9 @@ from pathlib import Path
 
 
 def load(path: str) -> list[dict]:
-    rows = [json.loads(l) for l in Path(path).read_text().splitlines() if l.strip()]
+    rows = [
+        json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()
+    ]
     if not rows:
         raise SystemExit(f"no rows in {path}")
     return rows
@@ -24,12 +27,23 @@ def pick_keys(rows: list[dict], requested):
         return requested
     # default "headline" curves if present, else everything numeric except step/t
     present = rows[0].keys()
-    preferred = ["loss", "frac_correct", "acc", "reward_mean", "margin", "kl",
-                 "r_chosen", "r_rejected"]
+    preferred = [
+        "loss",
+        "frac_correct",
+        "acc",
+        "reward_mean",
+        "margin",
+        "kl",
+        "r_chosen",
+        "r_rejected",
+    ]
     keys = [k for k in preferred if k in present]
     if not keys:
-        keys = [k for k in present if k not in ("step", "t")
-                and isinstance(rows[0][k], (int, float))]
+        keys = [
+            k
+            for k in present
+            if k not in ("step", "t") and isinstance(rows[0][k], (int, float))
+        ]
     return keys
 
 
@@ -41,6 +55,7 @@ def main():
     args = ap.parse_args()
 
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -50,10 +65,12 @@ def main():
 
     n = len(keys)
     fig, axes = plt.subplots(1, n, figsize=(4 * n, 3.2), squeeze=False)
-    for ax, k in zip(axes[0], keys):
+    for ax, k in zip(axes[0], keys, strict=True):
         ys = [r.get(k) for r in rows]
         ax.plot(steps, ys, marker=".", lw=1)
-        ax.set_title(k); ax.set_xlabel("step"); ax.grid(alpha=0.3)
+        ax.set_title(k)
+        ax.set_xlabel("step")
+        ax.grid(alpha=0.3)
     fig.tight_layout()
 
     out = args.out or str(Path(args.metrics).with_name("curve.png"))

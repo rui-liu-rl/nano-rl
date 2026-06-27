@@ -5,6 +5,7 @@ For each prompt, sample a group of G completions, score them, and use the
 response token. No value network. Optimize a PPO-clipped surrogate with a per-token
 KL penalty to a frozen reference (the k3 estimator).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -31,7 +32,9 @@ class GRPOConfig:
     norm_by_std: bool = True
 
 
-def group_advantages(rewards: torch.Tensor, group_size: int, norm_by_std: bool) -> torch.Tensor:
+def group_advantages(
+    rewards: torch.Tensor, group_size: int, norm_by_std: bool
+) -> torch.Tensor:
     """rewards: (B,) laid out as [p0g0, p0g1, ..., p1g0, ...]. Returns z-scores
     within each group of `group_size`."""
     r = rewards.view(-1, group_size)
@@ -46,7 +49,7 @@ class GRPO:
         self.policy = policy
         self.ref = ref
         self.tok = tokenizer
-        self.reward_fn = reward_fn          # (response_text, answer) -> float
+        self.reward_fn = reward_fn  # (response_text, answer) -> float
         self.cfg = cfg
         self.device = device or next(policy.parameters()).device
         self.engine = InferenceEngine(policy, tokenizer, self.device)
@@ -54,8 +57,12 @@ class GRPO:
 
     def step(self, problems) -> dict:
         cfg = self.cfg
-        sp = SamplingParams(max_new_tokens=cfg.max_new_tokens, temperature=cfg.temperature,
-                            top_p=cfg.top_p, n=cfg.group_size)
+        sp = SamplingParams(
+            max_new_tokens=cfg.max_new_tokens,
+            temperature=cfg.temperature,
+            top_p=cfg.top_p,
+            n=cfg.group_size,
+        )
         rollouts = self.engine.generate([p.prompt for p in problems], sp)
 
         # reward each rollout; problem i owns rollouts [i*G, (i+1)*G)
@@ -83,7 +90,7 @@ class GRPO:
             logp = out.logprobs
 
             ratio = torch.exp(logp - old_logp)
-            adv_tok = adv.unsqueeze(1)                       # broadcast over tokens
+            adv_tok = adv.unsqueeze(1)  # broadcast over tokens
             unclipped = ratio * adv_tok
             clipped = torch.clamp(ratio, 1 - cfg.clip, 1 + cfg.clip) * adv_tok
             pg_loss = -masked_mean(torch.min(unclipped, clipped), amask)

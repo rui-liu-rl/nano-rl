@@ -1,4 +1,5 @@
 """Small shared helpers: device/seed handling, masked tensor ops, logging."""
+
 from __future__ import annotations
 
 import random
@@ -51,14 +52,18 @@ def entropy_from_logits(logits: torch.Tensor) -> torch.Tensor:
     return -(p * logp).sum(dim=-1)
 
 
-def masked_mean(x: torch.Tensor, mask: torch.Tensor, dim: int | None = None) -> torch.Tensor:
+def masked_mean(
+    x: torch.Tensor, mask: torch.Tensor, dim: int | None = None
+) -> torch.Tensor:
     mask = mask.to(x.dtype)
     if dim is None:
         return (x * mask).sum() / mask.sum().clamp_min(1.0)
     return (x * mask).sum(dim) / mask.sum(dim).clamp_min(1.0)
 
 
-def masked_whiten(x: torch.Tensor, mask: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+def masked_whiten(
+    x: torch.Tensor, mask: torch.Tensor, eps: float = 1e-8
+) -> torch.Tensor:
     """Zero-mean, unit-var normalize `x` over masked entries."""
     m = masked_mean(x, mask)
     var = masked_mean((x - m) ** 2, mask)

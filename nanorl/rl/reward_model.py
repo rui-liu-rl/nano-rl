@@ -4,6 +4,7 @@ Train a scalar-head model so that r(chosen) > r(rejected):
     loss = -log σ( r(chosen) - r(rejected) ).
 The resulting model produces a scalar reward usable as the terminal reward in PPO.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,7 +24,9 @@ class RMConfig:
 
 
 def _collate(tok, texts, max_len, device):
-    enc = tok(texts, return_tensors="pt", padding=True, truncation=True, max_length=max_len)
+    enc = tok(
+        texts, return_tensors="pt", padding=True, truncation=True, max_length=max_len
+    )
     return enc["input_ids"].to(device), enc["attention_mask"].to(device)
 
 
@@ -52,9 +55,12 @@ class RewardModelTrainer:
 
         with torch.no_grad():
             acc = (r_ch > r_rj).float().mean()
-        return {"loss": float(loss.detach()), "acc": float(acc),
-                "r_chosen": float(r_ch.detach().mean()),
-                "r_rejected": float(r_rj.detach().mean())}
+        return {
+            "loss": float(loss.detach()),
+            "acc": float(acc),
+            "r_chosen": float(r_ch.detach().mean()),
+            "r_rejected": float(r_rj.detach().mean()),
+        }
 
     @torch.no_grad()
     def score(self, texts) -> torch.Tensor:

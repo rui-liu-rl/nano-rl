@@ -2,6 +2,7 @@
 right-padded batch with an `action_mask` that selects the *response* tokens once
 log-probs have been shifted for next-token prediction.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,13 +12,16 @@ import torch
 
 @dataclass
 class Batch:
-    input_ids: torch.Tensor       # (B, T)
+    input_ids: torch.Tensor  # (B, T)
     attention_mask: torch.Tensor  # (B, T)
-    action_mask: torch.Tensor     # (B, T-1) 1 on response tokens (aligned to logprobs)
+    action_mask: torch.Tensor  # (B, T-1) 1 on response tokens (aligned to logprobs)
 
     def to(self, device):
-        return Batch(self.input_ids.to(device), self.attention_mask.to(device),
-                     self.action_mask.to(device))
+        return Batch(
+            self.input_ids.to(device),
+            self.attention_mask.to(device),
+            self.action_mask.to(device),
+        )
 
 
 def collate_rollouts(rollouts, pad_id: int) -> Batch:
@@ -46,7 +50,7 @@ def collate_rollouts(rollouts, pad_id: int) -> Batch:
         # response occupies absolute positions [plens[i], plens[i]+rlens[i]);
         # those map to log-prob indices [plens[i]-1, ...).
         start = plens[i] - 1
-        action[i, start:start + rlens[i]] = 1
+        action[i, start : start + rlens[i]] = 1
     return Batch(input_ids, attn, action)
 
 
@@ -58,5 +62,5 @@ def pad_response_field(rollouts, field: str, T_minus_1: int) -> torch.Tensor:
     for i, r in enumerate(rollouts):
         vec = getattr(r, field)
         start = len(r.prompt_ids) - 1
-        out[i, start:start + len(vec)] = vec.float()
+        out[i, start : start + len(vec)] = vec.float()
     return out

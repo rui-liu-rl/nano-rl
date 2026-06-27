@@ -4,6 +4,7 @@ We lean on HuggingFace `transformers` only for the network definition and weight
 Everything RL-specific is built on top here so the rest of the codebase deals with
 plain `nn.Module`s with a couple of well-defined methods.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -55,8 +56,12 @@ def load_policy(
     return model, tok
 
 
-def load_reference(model_name: str, device: torch.device | None = None,
-                   dtype: str | None = None, random_init: bool = False):
+def load_reference(
+    model_name: str,
+    device: torch.device | None = None,
+    dtype: str | None = None,
+    random_init: bool = False,
+):
     """Frozen reference model (eval mode, no grad). Used by GRPO/PPO/DPO."""
     model, _ = load_policy(model_name, device, dtype, random_init)
     model.eval()
@@ -89,22 +94,32 @@ class CausalLMWithValue:
         yield from self.value_head.parameters()
 
     def train(self):
-        self.lm.train(); self.value_head.train(); return self
+        self.lm.train()
+        self.value_head.train()
+        return self
 
     def eval(self):
-        self.lm.eval(); self.value_head.eval(); return self
+        self.lm.eval()
+        self.value_head.eval()
+        return self
 
     def forward(self, input_ids, attention_mask):
-        out = self.lm(input_ids=input_ids, attention_mask=attention_mask,
-                      output_hidden_states=True)
+        out = self.lm(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_hidden_states=True,
+        )
         values = self.value_head(out.hidden_states[-1])
         return out.logits, values
 
 
 def load_policy_with_value(model_name, device=None, dtype=None, random_init=False):
     model, tok = load_policy(model_name, device, dtype, random_init)
-    head = ValueHead(model.config.hidden_size).to(model.device).to(
-        next(model.parameters()).dtype)
+    head = (
+        ValueHead(model.config.hidden_size)
+        .to(model.device)
+        .to(next(model.parameters()).dtype)
+    )
     return CausalLMWithValue(model, head), tok
 
 
@@ -115,17 +130,27 @@ class RewardModel(nn.Module):
     def __init__(self, model_name: str, device=None, dtype=None, random_init=False):
         super().__init__()
         device = device or get_device()
-        self.backbone, self.tokenizer = load_policy(model_name, device, dtype, random_init)
-        self.score = nn.Linear(self.backbone.config.hidden_size, 1).to(device).to(
-            next(self.backbone.parameters()).dtype)
+        self.backbone, self.tokenizer = load_policy(
+            model_name, device, dtype, random_init
+        )
+        self.score = (
+            nn.Linear(self.backbone.config.hidden_size, 1)
+            .to(device)
+            .to(next(self.backbone.parameters()).dtype)
+        )
 
     def forward(self, input_ids, attention_mask) -> torch.Tensor:
-        out = self.backbone(input_ids=input_ids, attention_mask=attention_mask,
-                            output_hidden_states=True)
-        hidden = out.hidden_states[-1]                       # (B, T, H)
+        out = self.backbone(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_hidden_states=True,
+        )
+        hidden = out.hidden_states[-1]  # (B, T, H)
         # index of the last attended (non-pad) token per row — works for either
         # padding side.
-        attended = attention_mask.cumsum(dim=1) == attention_mask.sum(dim=1, keepdim=True)
+        attended = attention_mask.cumsum(dim=1) == attention_mask.sum(
+            dim=1, keepdim=True
+        )
         idx = attended.float().argmax(dim=1)
         pooled = hidden[torch.arange(hidden.size(0), device=hidden.device), idx]
-        return self.score(pooled).squeeze(-1)                # (B,)
+        return self.score(pooled).squeeze(-1)  # (B,)
